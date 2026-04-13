@@ -23,6 +23,13 @@ const (
 type AssembleOptions struct {
 	N                 int
 	InvalidSeedAction InvalidSeedAction
+
+	// IsBlank overrides the automatic blank-file detection. When true,
+	// AssembleFile skips read-back verification for each chunk and the
+	// null seed skips writing zeros (assuming the file is already zero-filled).
+	// Use this when the caller has pre-allocated the file with physical
+	// zero blocks (e.g., via PreallocateFile on macOS).
+	IsBlank *bool
 }
 
 // writeChunk tries to write a chunk by looking at the self seed, if it is already existing in the
@@ -121,6 +128,11 @@ func AssembleFile(ctx context.Context, name string, idx Index, s Store, seeds []
 		isBlkDevice = true
 	case info.Size() == 0: // Is a file that exists, but is empty => use optimizations for blank files
 		isBlank = true
+	}
+
+	// Allow caller to override blank detection (e.g., for pre-allocated files)
+	if options.IsBlank != nil {
+		isBlank = *options.IsBlank
 	}
 
 	// Truncate the output file to the full expected size. Not only does this
